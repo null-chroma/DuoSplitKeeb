@@ -133,6 +133,7 @@ final class KeyboardView: UIView {
         state = newState
         theme = newState.isDark ? .dark : .light
         overrideUserInterfaceStyle = newState.isDark ? .dark : .light
+        backgroundColor = theme.background ?? .clear
         suggestionBar.theme = theme
         if old.page != newState.page {
             setNeedsLayout()
@@ -150,7 +151,7 @@ final class KeyboardView: UIView {
     private func refreshKeys() {
         let keyHeight = metrics.keyHeight
         let letterFont = UIFont.systemFont(ofSize: min(30, max(17, (keyHeight * 0.5).rounded())), weight: .regular)
-        let functionFont = UIFont.systemFont(ofSize: min(20, max(14, (keyHeight * 0.38).rounded())), weight: .regular)
+        let functionFont = UIFont.systemFont(ofSize: min(22, max(14, (keyHeight * 0.41).rounded())), weight: .regular)
         let symbolSize = min(24, max(16, (keyHeight * 0.42).rounded()))
         let popups = showsPopups
 
@@ -333,7 +334,7 @@ final class KeyboardView: UIView {
 
         let isTopRow = segment.row == 0
         let isBottomRow = segment.row == Self.rowCount - 1
-        let radius = (m.keyHeight * 0.22).rounded()
+        let radius = (m.keyHeight * 0.24).rounded()
         for (spec, view) in zip(segment.specs, segment.views) {
             let w = (spec.isFlexible ? flexWidth : spec.width * unit) * scale
             if let view {
