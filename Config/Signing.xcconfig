@@ -1,0 +1,10 @@
+// Edit these two lines before building on your phone.
+//
+// DEVELOPMENT_TEAM: your Apple Developer Team ID (Xcode → Settings → Accounts shows it),
+//                   or leave empty and pick a team under Signing & Capabilities instead.
+// BASE_BUNDLE_ID:   any unique reverse-DNS id. The keyboard gets "<id>.Keyboard" and the
+//                   shared settings use the App Group "group.<id>".
+
+DEVELOPMENT_TEAM =
+BASE_BUNDLE_ID = com.example.duosplitkeeb
+APP_GROUP_ID = group.$(BASE_BUNDLE_ID)
