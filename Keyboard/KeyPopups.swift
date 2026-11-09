@@ -21,7 +21,7 @@ final class KeyPreviewView: UIView {
 
     /// - Parameters:
     ///   - key: the visible frame of the key, in this view's coordinates.
-    func show(text: String, key: CGRect, theme: KeyboardTheme) {
+    func show(text: String, key: CGRect, cornerRadius: CGFloat, theme: KeyboardTheme) {
         let neck: CGFloat = 10
         let extra = max(6, (key.width * 0.3).rounded())
         let height = max(24, min(key.height * 1.1, key.minY - neck - 1))
@@ -37,7 +37,7 @@ final class KeyPreviewView: UIView {
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        let path = Self.balloonPath(top: top, key: key, neck: neck)
+        let path = Self.balloonPath(top: top, key: key, neck: neck, keyRadius: cornerRadius)
         shape.path = path.cgPath
         shape.shadowPath = path.cgPath
         shape.fillColor = theme.popupFill.cgColor
@@ -56,9 +56,9 @@ final class KeyPreviewView: UIView {
         isHidden = true
     }
 
-    private static func balloonPath(top t: CGRect, key k: CGRect, neck n: CGFloat) -> UIBezierPath {
+    private static func balloonPath(top t: CGRect, key k: CGRect, neck n: CGFloat, keyRadius: CGFloat) -> UIBezierPath {
         let r: CGFloat = 8
-        let kr = KeyView.cornerRadius
+        let kr = min(keyRadius, k.width / 2, k.height / 2)
         let p = UIBezierPath()
         p.move(to: CGPoint(x: t.minX + r, y: t.minY))
         p.addLine(to: CGPoint(x: t.maxX - r, y: t.minY))
@@ -137,7 +137,7 @@ final class AlternatesView: UIView {
         addSubview(panel)
 
         highlight.backgroundColor = theme.selectionFill
-        highlight.layer.cornerRadius = KeyView.cornerRadius
+        highlight.layer.cornerRadius = 8
         highlight.layer.cornerCurve = .continuous
         panel.addSubview(highlight)
 

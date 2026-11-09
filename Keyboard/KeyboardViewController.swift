@@ -40,7 +40,7 @@ final class KeyboardViewController: UIInputViewController {
             keyboardView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        let height = view.heightAnchor.constraint(equalToConstant: KeyboardView.preferredHeight(for: settings))
+        let height = view.heightAnchor.constraint(equalToConstant: preferredHeight())
         height.priority = UILayoutPriority(999)
         height.isActive = true
         heightConstraint = height
@@ -68,8 +68,23 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
-        if keyboardView.state.showsGlobe != needsInputModeSwitchKey {
-            pushState()
+        updateHeight()
+    }
+
+    /// Key size follows the screen width (like the system split keyboard), so the keyboard
+    /// height does too.
+    private func preferredHeight() -> CGFloat {
+        var width = view.bounds.width
+        if width <= 0 {
+            width = view.window?.windowScene?.screen.bounds.width ?? UIScreen.main.bounds.width
+        }
+        return keyboardView.computeMetrics(forWidth: width).height
+    }
+
+    private func updateHeight() {
+        let h = preferredHeight()
+        if let c = heightConstraint, abs(c.constant - h) > 0.5 {
+            c.constant = h
         }
     }
 
@@ -114,7 +129,8 @@ final class KeyboardViewController: UIInputViewController {
 
     private func applySettings() {
         keyboardView.settings = settings
-        heightConstraint?.constant = KeyboardView.preferredHeight(for: settings)
+        updateHeight()
+        keyboardView.setNeedsLayout()
     }
 
     // MARK: - State
@@ -164,7 +180,6 @@ final class KeyboardViewController: UIInputViewController {
         keyboardView.apply(KeyboardView.State(
             page: page,
             shift: shift,
-            showsGlobe: needsInputModeSwitchKey,
             returnTitle: title,
             returnIsPrimary: primary,
             returnEnabled: returnEnabled,
@@ -172,7 +187,8 @@ final class KeyboardViewController: UIInputViewController {
         ))
     }
 
-    private func returnKeyAppearance() -> (String, Bool) {
+    /// `nil` title = the plain return arrow.
+    private func returnKeyAppearance() -> (String?, Bool) {
         switch proxy.returnKeyType ?? .default {
         case .go: return ("go", true)
         case .google: return ("search", true)
@@ -185,7 +201,7 @@ final class KeyboardViewController: UIInputViewController {
         case .done: return ("done", true)
         case .emergencyCall: return ("emergency", true)
         case .continue: return ("continue", true)
-        default: return ("return", false)
+        default: return (nil, false)
         }
     }
 

@@ -1,11 +1,20 @@
 # Duo Split Keyboard
 
 A custom iPhone keyboard for the iPhone Duo's unfolded screen. It copies the built-in split
-keyboard (same keys, same layout, same look) with two changes:
+keyboard with two changes:
 
-- **Each half sits against its own edge of the screen.** No margin on the outside, so the
-  middle keys (T, G, V on the left and Y, H, B on the right) are easier to reach with your thumbs.
+- **Each half sits against its own edge of the screen.** The built-in keyboard leaves about 1.5
+  key-widths of empty space on each side. This one doesn't, so the middle keys (T, G, V on the
+  left; Y, G, H, V, B on the right) are easier to reach with your thumbs.
 - **It's always split.** There's no split/merge button and no three-dot menu.
+
+Everything else was measured from a screenshot of the built-in split keyboard:
+
+- **Key size:** one key plus its gap is 6% of the screen width, and the gap is 19% of that.
+- **Rows:** the same key positions in each row, including the extra G and V that start the right
+  half's middle and bottom rows.
+- **Look:** flat gray keys with no shadows, a return-arrow key, and keys that light up when
+  pressed instead of showing a pop-up.
 
 When the phone is folded (narrow screen), the keyboard switches back to the normal full-width
 iPhone layout. You can change this to "Always" or "Never" in the app.
@@ -14,20 +23,23 @@ iPhone layout. You can change this to "Always" or "Never" in the app.
 
 | | |
 |---|---|
-| Layout | QWERTY letters, 123 numbers and #+= symbols, split along the same T/Y, G/H, V/B line as the system split keyboard |
+| Layout | QWERTY letters (with the extra G and V on the right half), 123 numbers and #+= symbols |
 | Keys | Shift (double-tap for caps lock), delete with key repeat, globe (tap to switch keyboards, hold for the list), return key that changes to go / search / send / done / … in the same color as the system key |
-| Feel | Key pop-up when pressed, hold for accents (é, ñ, ü …), hold the space bar to move the cursor, slide your finger to change keys, fast typing with two thumbs |
+| Feel | Keys light up when pressed (pop-ups are optional), hold for accents (é, ñ, ü …), hold the space bar to move the cursor, slide your finger to change keys, fast typing with two thumbs |
 | Text | Suggestion bar, autocorrect (press delete right after it to undo), your Text Replacements, auto-capitalization, double-space for "." |
 | Look | Light and dark mode, the standard key click sound, optional haptics |
 
 ## Settings (in the Duo Split app)
 
-- **Distance from screen edge**: how far the outer keys are from the edge (default 3 pt, the
-  same as the normal keyboard).
-- **Key width**: smaller keys make each half narrower, which brings the middle keys closer to
-  your thumbs.
+- **Distance from screen edge**: how far the outer keys are from the side edges (default 4 pt).
+- **Bottom corner clearance**: moves only the bottom row inward, so 123 and return aren't cut
+  off by the screen's rounded corners (default 16 pt).
+- **Key size**: 100% matches the built-in split keyboard. Smaller keys make each half narrower,
+  which brings the middle keys closer to your thumbs.
 - **Key height**
 - **Split keyboard**: When unfolded (default) / Always / Never
+- **Suggestion bar** and **key pop-ups**: the built-in split keyboard has neither, so turn the
+  bar off if you want it to look the same. Autocorrect still works without the bar.
 - Auto-Correction, Auto-Capitalization, the "." shortcut, haptics
 
 The app has a test text field. Settings apply to the open keyboard right away, so you can
@@ -55,6 +67,7 @@ These limits apply to every custom keyboard, not just this one:
 
 - iOS always switches to the system keyboard for password fields and phone-number pads.
 - No dictation microphone, and no emoji key. Use the globe key to switch to the emoji keyboard.
+  The space bars also cover the spots where those keys sit on the built-in keyboard.
 - Suggestions come from Apple's public spell checker, so they're good but not as smart as the
   system keyboard's predictions.
 

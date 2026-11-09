@@ -24,20 +24,27 @@ enum SplitMode: Int, CaseIterable, Identifiable {
 /// extension (which reads them). They are stored in the shared App Group.
 struct KeyboardSettings: Equatable {
     var splitMode: SplitMode = .automatic
-    /// Distance in points between the outermost keys and the edge of the screen.
-    var edgeMargin: Double = 3
-    /// Width of one letter key "slot" (key + gap) in points, while split.
-    var keyWidth: Double = 42
-    /// Height of one key row (key + gap) in points.
-    var rowHeight: Double = 54
+    /// Distance in points between the outermost keys and the side edges of the screen.
+    var edgeMargin: Double = 4
+    /// Extra inward shift for the bottom row only, so the 123 and return keys clear the
+    /// screen's rounded bottom corners.
+    var bottomCornerInset: Double = 16
+    /// Key size relative to the system split keyboard (1 = same size).
+    var keyScale: Double = 1
+    /// Key height relative to the system keyboard (1 = same height).
+    var keyHeightScale: Double = 1
+    var showSuggestionBar = true
+    /// Pop-up balloons on key press while split (the system split keyboard just highlights).
+    var keyPopups = false
     var autocorrect = true
     var autoCapitalize = true
     var doubleSpacePeriod = true
     var haptics = false
 
-    static let edgeMarginRange: ClosedRange<Double> = 0...60
-    static let keyWidthRange: ClosedRange<Double> = 30...64
-    static let rowHeightRange: ClosedRange<Double> = 44...72
+    static let edgeMarginRange: ClosedRange<Double> = 0...80
+    static let bottomCornerInsetRange: ClosedRange<Double> = 0...60
+    static let keyScaleRange: ClosedRange<Double> = 0.75...1.3
+    static let keyHeightScaleRange: ClosedRange<Double> = 0.8...1.3
 
     /// Darwin notification posted by the app whenever a setting changes so a visible
     /// keyboard can update immediately.
@@ -45,9 +52,12 @@ struct KeyboardSettings: Equatable {
 
     private enum Key {
         static let splitMode = "splitMode"
-        static let edgeMargin = "edgeMargin"
-        static let keyWidth = "keyWidth"
-        static let rowHeight = "rowHeight"
+        static let edgeMargin = "edgeMargin.v2"
+        static let bottomCornerInset = "bottomCornerInset"
+        static let keyScale = "keyScale"
+        static let keyHeightScale = "keyHeightScale"
+        static let showSuggestionBar = "showSuggestionBar"
+        static let keyPopups = "keyPopups"
         static let autocorrect = "autocorrect"
         static let autoCapitalize = "autoCapitalize"
         static let doubleSpacePeriod = "doubleSpacePeriod"
@@ -76,8 +86,11 @@ struct KeyboardSettings: Equatable {
             s.splitMode = mode
         }
         if let v = d.object(forKey: Key.edgeMargin) as? Double { s.edgeMargin = v.clamped(to: edgeMarginRange) }
-        if let v = d.object(forKey: Key.keyWidth) as? Double { s.keyWidth = v.clamped(to: keyWidthRange) }
-        if let v = d.object(forKey: Key.rowHeight) as? Double { s.rowHeight = v.clamped(to: rowHeightRange) }
+        if let v = d.object(forKey: Key.bottomCornerInset) as? Double { s.bottomCornerInset = v.clamped(to: bottomCornerInsetRange) }
+        if let v = d.object(forKey: Key.keyScale) as? Double { s.keyScale = v.clamped(to: keyScaleRange) }
+        if let v = d.object(forKey: Key.keyHeightScale) as? Double { s.keyHeightScale = v.clamped(to: keyHeightScaleRange) }
+        if let v = d.object(forKey: Key.showSuggestionBar) as? Bool { s.showSuggestionBar = v }
+        if let v = d.object(forKey: Key.keyPopups) as? Bool { s.keyPopups = v }
         if let v = d.object(forKey: Key.autocorrect) as? Bool { s.autocorrect = v }
         if let v = d.object(forKey: Key.autoCapitalize) as? Bool { s.autoCapitalize = v }
         if let v = d.object(forKey: Key.doubleSpacePeriod) as? Bool { s.doubleSpacePeriod = v }
@@ -89,8 +102,11 @@ struct KeyboardSettings: Equatable {
         let d = KeyboardSettings.store
         d.set(splitMode.rawValue, forKey: Key.splitMode)
         d.set(edgeMargin, forKey: Key.edgeMargin)
-        d.set(keyWidth, forKey: Key.keyWidth)
-        d.set(rowHeight, forKey: Key.rowHeight)
+        d.set(bottomCornerInset, forKey: Key.bottomCornerInset)
+        d.set(keyScale, forKey: Key.keyScale)
+        d.set(keyHeightScale, forKey: Key.keyHeightScale)
+        d.set(showSuggestionBar, forKey: Key.showSuggestionBar)
+        d.set(keyPopups, forKey: Key.keyPopups)
         d.set(autocorrect, forKey: Key.autocorrect)
         d.set(autoCapitalize, forKey: Key.autoCapitalize)
         d.set(doubleSpacePeriod, forKey: Key.doubleSpacePeriod)

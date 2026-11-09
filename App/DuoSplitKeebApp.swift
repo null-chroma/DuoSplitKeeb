@@ -34,15 +34,26 @@ struct ContentView: View {
                         }
                     }
                     SettingSlider(title: "Distance from screen edge", value: $settings.edgeMargin,
-                                  range: KeyboardSettings.edgeMarginRange, step: 1)
-                    SettingSlider(title: "Key width", value: $settings.keyWidth,
-                                  range: KeyboardSettings.keyWidthRange, step: 1)
-                    SettingSlider(title: "Key height", value: $settings.rowHeight,
-                                  range: KeyboardSettings.rowHeightRange, step: 1)
+                                  range: KeyboardSettings.edgeMarginRange, step: 1, format: .points)
+                    SettingSlider(title: "Bottom corner clearance", value: $settings.bottomCornerInset,
+                                  range: KeyboardSettings.bottomCornerInsetRange, step: 1, format: .points)
+                    SettingSlider(title: "Key size", value: $settings.keyScale,
+                                  range: KeyboardSettings.keyScaleRange, step: 0.01, format: .percent)
+                    SettingSlider(title: "Key height", value: $settings.keyHeightScale,
+                                  range: KeyboardSettings.keyHeightScaleRange, step: 0.01, format: .percent)
                 } header: {
                     Text("Layout")
                 } footer: {
-                    Text("Each half sits against its own edge of the screen. Lower the distance to push the keys outward; lower the key width to pull G, T, Y, H, V and B closer to your thumbs.")
+                    Text("Each half sits against its own edge of the screen. Key size 100% matches the built-in split keyboard. Lower the distance to push the keys outward, or shrink the keys to pull G, T, Y, H, V and B closer to your thumbs. Bottom corner clearance moves only the bottom row inward, so 123 and return stay clear of the screen's rounded corners.")
+                }
+
+                Section {
+                    Toggle("Suggestion bar", isOn: $settings.showSuggestionBar)
+                    Toggle("Key pop-ups", isOn: $settings.keyPopups)
+                } header: {
+                    Text("Split keyboard")
+                } footer: {
+                    Text("The built-in split keyboard lights up the key you press instead of showing a pop-up.")
                 }
 
                 Section("Typing") {
@@ -86,13 +97,23 @@ private struct SettingSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
+    var format: Format = .points
+
+    enum Format { case points, percent }
+
+    private var valueText: String {
+        switch format {
+        case .points: return "\(Int(value.rounded())) pt"
+        case .percent: return "\(Int((value * 100).rounded()))%"
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(title)
                 Spacer()
-                Text("\(Int(value.rounded())) pt")
+                Text(valueText)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }

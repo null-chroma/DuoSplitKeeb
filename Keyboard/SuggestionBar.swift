@@ -85,7 +85,7 @@ final class SuggestionBar: UIView {
             b.setTitleColor(theme.text, for: .normal)
             b.setTitleColor(theme.text.withAlphaComponent(0.4), for: .highlighted)
             b.isEnabled = item != nil
-            b.backgroundColor = item?.isAutocorrection == true ? theme.characterKey : .clear
+            b.backgroundColor = item?.isAutocorrection == true ? theme.key : .clear
         }
         for (i, s) in separators.enumerated() {
             s.backgroundColor = theme.separator

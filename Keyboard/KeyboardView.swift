@@ -18,23 +18,37 @@ final class KeyboardView: UIView {
     struct State: Equatable {
         var page: KeyboardPage = .letters
         var shift: ShiftState = .off
-        var showsGlobe = true
-        var returnTitle = "return"
+        var returnTitle: String?
         var returnIsPrimary = false
         var returnEnabled = true
         var isDark = false
     }
 
-    static let suggestionBarHeight: CGFloat = 44
-    static let topPadding: CGFloat = 2
-    static let bottomPadding: CGFloat = 2
-    static let rowCount = 4
-    /// Horizontal gap between neighboring keys (same as the system keyboard).
-    static let keyGap: CGFloat = 6
+    /// Sizes for one layout pass.
+    struct Metrics: Equatable {
+        var split: Bool
+        /// Width of one key plus its gap.
+        var unit: CGFloat
+        /// Height of one key row plus its gap.
+        var rowPitch: CGFloat
+        var hGap: CGFloat
+        var vGap: CGFloat
+        var barHeight: CGFloat
+        var topPadding: CGFloat
+        var bottomPadding: CGFloat
 
-    static func preferredHeight(for settings: KeyboardSettings) -> CGFloat {
-        suggestionBarHeight + topPadding + CGFloat(rowCount) * CGFloat(settings.rowHeight) + bottomPadding
+        var keysTop: CGFloat { barHeight + topPadding }
+        var height: CGFloat { keysTop + CGFloat(KeyboardView.rowCount) * rowPitch + bottomPadding }
+        var keyHeight: CGFloat { rowPitch - vGap }
     }
+
+    static let rowCount = 4
+
+    // Measured from the system split keyboard on the unfolded screen: one key plus its gap is
+    // 6% of the screen width, the gap is 19% of that, and rows are 96.7% as tall as keys are wide.
+    static let splitUnitFraction: CGFloat = 0.06
+    static let splitGapFraction: CGFloat = 0.19
+    static let splitRowFraction: CGFloat = 0.967
 
     weak var delegate: KeyboardViewDelegate?
 
@@ -61,7 +75,6 @@ final class KeyboardView: UIView {
 
     private struct BuildSignature: Equatable {
         var page: KeyboardPage
-        var showsGlobe: Bool
         var split: Bool
     }
 
@@ -88,10 +101,13 @@ final class KeyboardView: UIView {
     private var keyViews: [KeyView] = []
     private var builtSignature: BuildSignature?
     private var theme = KeyboardTheme.light
-    private var keyUnit: CGFloat = 40
+    private var metrics = Metrics(split: false, unit: 40, rowPitch: 54, hGap: 6, vGap: 12,
+                                  barHeight: 44, topPadding: 2, bottomPadding: 2)
     private let preview = KeyPreviewView()
     private var alternatesView: AlternatesView?
     private var tracked: [UITouch: TrackedTouch] = [:]
+
+    private var showsPopups: Bool { !metrics.split || settings.keyPopups }
 
     // MARK: - Init
 
@@ -118,7 +134,7 @@ final class KeyboardView: UIView {
         theme = newState.isDark ? .dark : .light
         overrideUserInterfaceStyle = newState.isDark ? .dark : .light
         suggestionBar.theme = theme
-        if old.page != newState.page || old.showsGlobe != newState.showsGlobe {
+        if old.page != newState.page {
             setNeedsLayout()
             layoutIfNeeded()
         }
@@ -132,13 +148,18 @@ final class KeyboardView: UIView {
     }
 
     private func refreshKeys() {
-        let letterFont = UIFont.systemFont(ofSize: min(25, max(18, (keyUnit * 0.58).rounded())), weight: .regular)
-        let functionFont = UIFont.systemFont(ofSize: 16, weight: .regular)
+        let keyHeight = metrics.keyHeight
+        let letterFont = UIFont.systemFont(ofSize: min(30, max(17, (keyHeight * 0.5).rounded())), weight: .regular)
+        let functionFont = UIFont.systemFont(ofSize: min(20, max(14, (keyHeight * 0.38).rounded())), weight: .regular)
+        let symbolSize = min(24, max(16, (keyHeight * 0.42).rounded()))
+        let popups = showsPopups
+
         for key in keyViews {
             key.theme = theme
+            key.highlightsWhenPressed = !popups
             switch key.spec.action {
             case .character(let c):
-                key.configure(text: displayText(c), symbol: nil, style: .character, font: letterFont)
+                key.configure(text: displayText(c), symbol: nil, symbolSize: symbolSize, style: .normal, font: letterFont)
             case .shift:
                 let symbol: String
                 switch state.shift {
@@ -146,18 +167,26 @@ final class KeyboardView: UIView {
                 case .on: symbol = "shift.fill"
                 case .capsLock: symbol = "capslock.fill"
                 }
-                key.configure(text: nil, symbol: symbol, style: state.shift == .off ? .function : .character, font: functionFont)
+                key.configure(text: nil, symbol: symbol, symbolSize: symbolSize, style: .normal, font: functionFont)
             case .backspace:
-                key.configure(text: nil, symbol: key.isPressed ? "delete.left.fill" : "delete.left", style: .function, font: functionFont)
+                key.configure(text: nil, symbol: key.isPressed ? "delete.left.fill" : "delete.left",
+                              symbolSize: symbolSize, style: .normal, font: functionFont)
             case .page:
-                key.configure(text: key.spec.label, symbol: nil, style: .function, font: functionFont)
+                key.configure(text: key.spec.label, symbol: nil, symbolSize: symbolSize, style: .normal, font: functionFont)
             case .globe:
-                key.configure(text: nil, symbol: "globe", style: .function, font: functionFont)
+                key.configure(text: nil, symbol: "globe", symbolSize: symbolSize, style: .normal, font: functionFont)
             case .space:
-                key.configure(text: "space", symbol: nil, style: .character, font: functionFont)
+                // The system split keyboard's space bar has no label.
+                key.configure(text: metrics.split ? nil : "space", symbol: nil, symbolSize: symbolSize,
+                              style: .normal, font: functionFont)
             case .returnKey:
-                key.configure(text: state.returnTitle, symbol: nil,
-                              style: state.returnIsPrimary ? .primary : .function, font: functionFont)
+                if let title = state.returnTitle {
+                    key.configure(text: title, symbol: nil, symbolSize: symbolSize,
+                                  style: state.returnIsPrimary ? .primary : .normal, font: functionFont)
+                } else {
+                    key.configure(text: nil, symbol: "return.left", symbolSize: symbolSize,
+                                  style: .normal, font: functionFont)
+                }
                 key.isEnabled = state.returnEnabled
             case .spacer:
                 break
@@ -167,14 +196,14 @@ final class KeyboardView: UIView {
 
     // MARK: - Layout
 
-    private func shouldSplit() -> Bool {
+    private func shouldSplit(width: CGFloat) -> Bool {
         switch settings.splitMode {
         case .always: return true
         case .never: return false
         case .automatic:
-            // Unfolded = wide and close to square. Folded phone in landscape is wide but
+            // Unfolded = wide and close to square. The folded phone in landscape is wide but
             // long and skinny, so it gets the normal keyboard.
-            guard bounds.width >= 600 else { return false }
+            guard width >= 600 else { return false }
             let screen = window?.windowScene?.screen.bounds.size ?? UIScreen.main.bounds.size
             let long = max(screen.width, screen.height)
             let short = max(1, min(screen.width, screen.height))
@@ -182,19 +211,43 @@ final class KeyboardView: UIView {
         }
     }
 
+    func computeMetrics(forWidth width: CGFloat) -> Metrics {
+        let heightScale = CGFloat(settings.keyHeightScale)
+        if shouldSplit(width: width) {
+            let outer = CGFloat(settings.edgeMargin)
+            let maxUnit = max(20, (width - 2 * outer - 24) / (2 * KeyboardLayouts.halfWidthUnits))
+            let unit = min(width * Self.splitUnitFraction * CGFloat(settings.keyScale), maxUnit)
+            let rowPitch = unit * Self.splitRowFraction * heightScale
+            let bar: CGFloat = settings.showSuggestionBar ? 40 : 0
+            return Metrics(split: true, unit: unit, rowPitch: rowPitch,
+                           hGap: (unit * Self.splitGapFraction).rounded(),
+                           vGap: (rowPitch * 0.25).rounded(),
+                           barHeight: bar,
+                           topPadding: (unit * 0.1).rounded(),
+                           bottomPadding: (unit * 0.25).rounded())
+        } else {
+            let rowPitch = 54 * heightScale
+            return Metrics(split: false, unit: width / KeyboardLayouts.fullWidthUnits, rowPitch: rowPitch,
+                           hGap: 6, vGap: (rowPitch * 0.22).rounded(),
+                           barHeight: 44, topPadding: 2, bottomPadding: 2)
+        }
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
-        suggestionBar.frame = CGRect(x: 0, y: 0, width: bounds.width, height: Self.suggestionBarHeight)
         preview.frame = bounds
         alternatesView?.frame = bounds
         guard bounds.width > 0 else { return }
 
-        let split = shouldSplit()
-        let signature = BuildSignature(page: state.page, showsGlobe: state.showsGlobe, split: split)
+        metrics = computeMetrics(forWidth: bounds.width)
+        suggestionBar.frame = CGRect(x: 0, y: 0, width: bounds.width, height: metrics.barHeight)
+        suggestionBar.isHidden = metrics.barHeight == 0
+
+        let signature = BuildSignature(page: state.page, split: metrics.split)
         if signature != builtSignature {
             rebuild(signature)
         }
-        layoutKeys(split: split)
+        layoutKeys()
         refreshKeys()
         bringSubviewToFront(preview)
         if let alternatesView { bringSubviewToFront(alternatesView) }
@@ -206,14 +259,15 @@ final class KeyboardView: UIView {
         keyViews = []
         segments = []
 
-        let page = KeyboardLayouts.page(signature.page, showsGlobe: signature.showsGlobe)
+        let page = KeyboardLayouts.page(signature.page)
         for row in 0..<page.left.count {
             if signature.split {
                 segments.append(makeSegment(row: row, side: .left, specs: page.left[row]))
                 segments.append(makeSegment(row: row, side: .right, specs: page.right[row]))
             } else {
-                segments.append(makeSegment(row: row, side: .joined,
-                                            specs: KeyboardLayouts.join(page.left[row], page.right[row])))
+                let joined = KeyboardLayouts.join(page.left[row], page.right[row],
+                                                  isBottomRow: row == Self.rowCount - 1)
+                segments.append(makeSegment(row: row, side: .joined, specs: joined))
             }
         }
         builtSignature = signature
@@ -230,44 +284,35 @@ final class KeyboardView: UIView {
         return Segment(row: row, side: side, specs: specs, views: views)
     }
 
-    private func layoutKeys(split: Bool) {
-        let rowHeight = CGFloat(settings.rowHeight)
-        let vGap = max(8, (rowHeight * 0.22).rounded())
-        let hGap = Self.keyGap
-        let top = Self.suggestionBarHeight + Self.topPadding
+    private func layoutKeys() {
+        let m = metrics
         let width = bounds.width
-
-        var leftX: CGFloat = 0, rightX: CGFloat = 0, halfWidth: CGFloat = 0
-        if split {
-            // `edgeMargin` is the visible distance from the screen edge to the first key.
-            let outer = max(0, CGFloat(settings.edgeMargin) - hGap / 2)
-            let maxUnit = max(20, (width - 2 * outer - 40) / (2 * KeyboardLayouts.halfWidthUnits))
-            keyUnit = min(CGFloat(settings.keyWidth), maxUnit)
-            halfWidth = keyUnit * KeyboardLayouts.halfWidthUnits
-            leftX = outer
-            rightX = width - outer - halfWidth
-        } else {
-            keyUnit = width / KeyboardLayouts.fullWidthUnits
-        }
+        let halfWidth = m.unit * KeyboardLayouts.halfWidthUnits
+        // `edgeMargin` is the visible distance from the screen edge to the outermost key.
+        let outer = max(0, CGFloat(settings.edgeMargin) - m.hGap / 2)
+        let corner = CGFloat(settings.bottomCornerInset)
 
         for segment in segments {
-            let y = top + CGFloat(segment.row) * rowHeight
+            let y = m.keysTop + CGFloat(segment.row) * m.rowPitch
+            let isBottomRow = segment.row == Self.rowCount - 1
             switch segment.side {
             case .left:
-                place(segment, x: leftX, width: halfWidth, alignment: .leading, y: y, rowHeight: rowHeight, hGap: hGap, vGap: vGap)
+                let inset = isBottomRow ? corner : 0
+                place(segment, x: outer + inset, width: halfWidth - inset, alignment: .leading, y: y)
             case .right:
-                place(segment, x: rightX, width: halfWidth, alignment: .trailing, y: y, rowHeight: rowHeight, hGap: hGap, vGap: vGap)
+                let inset = isBottomRow ? corner : 0
+                place(segment, x: width - outer - halfWidth, width: halfWidth - inset, alignment: .trailing, y: y)
             case .joined:
-                place(segment, x: 0, width: width, alignment: .center, y: y, rowHeight: rowHeight, hGap: hGap, vGap: vGap)
+                place(segment, x: 0, width: width, alignment: .center, y: y)
             }
         }
     }
 
     private enum Alignment { case leading, trailing, center }
 
-    private func place(_ segment: Segment, x: CGFloat, width: CGFloat, alignment: Alignment,
-                       y: CGFloat, rowHeight: CGFloat, hGap: CGFloat, vGap: CGFloat) {
-        let unit = keyUnit
+    private func place(_ segment: Segment, x: CGFloat, width: CGFloat, alignment: Alignment, y: CGFloat) {
+        let m = metrics
+        let unit = m.unit
         let fixed = segment.specs.filter { !$0.isFlexible }.reduce(0) { $0 + $1.width } * unit
         let flexCount = CGFloat(segment.specs.filter { $0.isFlexible }.count)
         var flexWidth: CGFloat = 0
@@ -288,14 +333,16 @@ final class KeyboardView: UIView {
 
         let isTopRow = segment.row == 0
         let isBottomRow = segment.row == Self.rowCount - 1
+        let radius = (m.keyHeight * 0.22).rounded()
         for (spec, view) in zip(segment.specs, segment.views) {
             let w = (spec.isFlexible ? flexWidth : spec.width * unit) * scale
             if let view {
-                let cell = CGRect(x: cursor, y: y, width: w, height: rowHeight)
-                view.frame = cell.insetBy(dx: hGap / 2, dy: vGap / 2).integral
+                let cell = CGRect(x: cursor, y: y, width: w, height: m.rowPitch)
+                view.frame = cell.insetBy(dx: m.hGap / 2, dy: m.vGap / 2).integral
+                view.cornerRadius = radius
                 var hit = cell
-                if isTopRow { hit.origin.y -= Self.topPadding; hit.size.height += Self.topPadding }
-                if isBottomRow { hit.size.height += Self.bottomPadding + 20 }
+                if isTopRow { hit.origin.y -= m.topPadding; hit.size.height += m.topPadding }
+                if isBottomRow { hit.size.height += m.bottomPadding + 20 }
                 view.hitFrame = hit
             }
             cursor += w
@@ -305,7 +352,7 @@ final class KeyboardView: UIView {
     // MARK: - Hit testing
 
     private func key(at point: CGPoint) -> KeyView? {
-        guard point.y >= Self.suggestionBarHeight else { return nil }
+        guard point.y >= metrics.barHeight else { return nil }
         var best: KeyView?
         var bestDistance = CGFloat.greatestFiniteMagnitude
         for key in keyViews {
@@ -321,7 +368,7 @@ final class KeyboardView: UIView {
         }
         // Snap to a nearby key (e.g. a tap in the strip between a key and the screen edge),
         // but ignore taps in the empty middle of the split keyboard.
-        return bestDistance <= keyUnit * 0.75 ? best : nil
+        return bestDistance <= metrics.unit * 0.75 ? best : nil
     }
 
     // MARK: - Touches
@@ -472,9 +519,9 @@ final class KeyboardView: UIView {
     }
 
     private func showPreview(for key: KeyView) {
-        guard case .character(let c) = key.spec.action else { return }
+        guard showsPopups, case .character(let c) = key.spec.action else { return }
         preview.frame = bounds
-        preview.show(text: displayText(c), key: key.frame, theme: theme)
+        preview.show(text: displayText(c), key: key.frame, cornerRadius: key.cornerRadius, theme: theme)
         bringSubviewToFront(preview)
     }
 

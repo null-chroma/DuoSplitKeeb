@@ -3,15 +3,11 @@ import UIKit
 /// A single drawn key. Touches are handled by `KeyboardView`, not by the key itself.
 final class KeyView: UIView {
     enum Style {
-        /// Letter / number / space keys (white in light mode).
-        case character
-        /// Shift, delete, 123, globe, return (gray in light mode).
-        case function
+        /// Every normal key (letters, shift, delete, 123, globe, space, plain return).
+        case normal
         /// Blue action key ("go", "search", "send" …).
         case primary
     }
-
-    static let cornerRadius: CGFloat = 5
 
     let spec: KeySpec
     /// The touch area for this key, in `KeyboardView` coordinates. Includes the gaps around
@@ -21,6 +17,11 @@ final class KeyView: UIView {
     var theme: KeyboardTheme = .light { didSet { applyColors() } }
     var isPressed = false { didSet { if isPressed != oldValue { applyColors() } } }
     var isEnabled = true { didSet { if isEnabled != oldValue { applyColors() } } }
+    /// When false, the key keeps its color while pressed (a pop-up balloon covers it instead).
+    var highlightsWhenPressed = true
+    var cornerRadius: CGFloat = 8 {
+        didSet { layer.cornerRadius = cornerRadius }
+    }
     var isContentHidden = false {
         didSet {
             label.isHidden = isContentHidden
@@ -28,7 +29,7 @@ final class KeyView: UIView {
         }
     }
 
-    private(set) var style: Style = .character
+    private(set) var style: Style = .normal
     private let label = UILabel()
     private let icon = UIImageView()
 
@@ -36,10 +37,8 @@ final class KeyView: UIView {
         self.spec = spec
         super.init(frame: .zero)
         isUserInteractionEnabled = false
-        layer.cornerRadius = Self.cornerRadius
+        layer.cornerRadius = cornerRadius
         layer.cornerCurve = .continuous
-        layer.shadowOffset = CGSize(width: 0, height: 1)
-        layer.shadowRadius = 0
 
         label.textAlignment = .center
         label.adjustsFontSizeToFitWidth = true
@@ -53,12 +52,12 @@ final class KeyView: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(text: String?, symbol: String?, style: Style, font: UIFont) {
+    func configure(text: String?, symbol: String?, symbolSize: CGFloat, style: Style, font: UIFont) {
         self.style = style
         if label.text != text { label.text = text }
         label.font = font
         if let symbol {
-            let config = UIImage.SymbolConfiguration(pointSize: 19, weight: .regular)
+            let config = UIImage.SymbolConfiguration(pointSize: symbolSize, weight: .regular)
             icon.image = UIImage(systemName: symbol, withConfiguration: config)
         } else {
             icon.image = nil
@@ -68,25 +67,21 @@ final class KeyView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        // Lowercase letters sit very slightly high on the system keyboard.
-        let lift: CGFloat = spec.isCharacter ? 1 : 0
-        label.frame = bounds.insetBy(dx: 3, dy: 0).offsetBy(dx: 0, dy: -lift)
+        label.frame = bounds.insetBy(dx: 3, dy: 0)
         icon.frame = bounds
-        layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: Self.cornerRadius).cgPath
     }
 
     private func applyColors() {
+        let showPressed = isPressed && (highlightsWhenPressed || !spec.isCharacter)
         let fill: UIColor
-        var foreground: UIColor = theme.text
+        var foreground: UIColor
         switch style {
-        case .character:
-            // Letter keys show a popup instead of changing color; the space bar darkens.
-            fill = (isPressed && spec.action == .space) ? theme.pressedCharacterKey : theme.characterKey
-        case .function:
-            fill = isPressed ? theme.pressedFunctionKey : theme.functionKey
+        case .normal:
+            fill = showPressed ? theme.pressedKey : theme.key
+            foreground = theme.text
         case .primary:
-            fill = isPressed ? theme.pressedPrimaryKey : theme.primaryKey
-            foreground = isPressed ? theme.pressedPrimaryText : theme.primaryText
+            fill = showPressed ? theme.pressedPrimaryKey : theme.primaryKey
+            foreground = theme.primaryText
         }
         if !isEnabled {
             foreground = foreground.withAlphaComponent(0.4)
@@ -94,7 +89,5 @@ final class KeyView: UIView {
         backgroundColor = fill
         label.textColor = foreground
         icon.tintColor = foreground
-        layer.shadowColor = theme.shadow.cgColor
-        layer.shadowOpacity = theme.shadowOpacity
     }
 }
